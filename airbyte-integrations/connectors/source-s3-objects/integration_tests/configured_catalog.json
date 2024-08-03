@@ -1,0 +1,20 @@
+{
+  "streams": [
+    {
+      "stream": {
+        "name": "objects",
+        "json_schema": {},
+       "supported_sync_modes": ["full_refresh",
+                                "incremental"],
+       "source_defined_cursor": true,
+       "default_cursor_field": ["LastModified"],
+       "source_defined_primary_key": [["Key"]],
+       "is_resumable": true
+      },
+      "sync_mode": "incremental",
+      "cursor_field": ["LastModified"],
+      "cursor": "2025-07-01T00:00:00Z",
+      "destination_sync_mode": "overwrite"
+    }
+  ]
+}

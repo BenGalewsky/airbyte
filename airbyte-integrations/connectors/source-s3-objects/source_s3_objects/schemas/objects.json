@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "Key": {
+      "type": "string",
+      "description": "The name assigned to an object, used to retrieve the object"
+    },
+    "LastModified": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Creation date of the object"
+    },
+    "ETag": {
+      "type": "string",
+      "description": "A hash of the object, reflecting changes only to the contents, not its metadata"
+    },
+    "ChecksumAlgorithm": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The algorithm used to create a checksum of the object"
+    },
+    "Size": {
+      "type": "integer",
+      "description": "Size in bytes of the object"
+    },
+    "StorageClass": {
+      "type": "string",
+      "description": "The class of storage used to store the object"
+    },
+    "Owner": {
+      "type": "object",
+      "properties": {
+        "DisplayName": {
+          "type": "string",
+          "description": "Display name of the owner"
+        },
+        "ID": {
+          "type": "string",
+          "description": "ID of the owner"
+        }
+      }
+    },
+    "RestoreStatus": {
+      "type": "object",
+      "properties": {
+        "IsRestoreInProgress": {
+          "type": "boolean",
+          "description": "Specifies whether the object is currently being restored"
+        },
+        "RestoreExpiryDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Indicates when the restored copy will expire"
+        }
+      }
+    },
+    "Name": {
+      "type": "string",
+      "description": "The bucket name"
+    },
+    "Prefix": {
+      "type": "string",
+      "description": "Keys that begin with the indicated prefix"
+    },
+    "Delimiter": {
+      "type": "string",
+      "description": "Delimiter used for rolling up keys into CommonPrefixes"
+    },
+    "MaxKeys": {
+      "type": "integer",
+      "description": "The maximum number of keys returned in the response body"
+    },
+    "CommonPrefixes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "Prefix": {
+            "type": "string",
+            "description": "Container for the specified common prefix"
+          }
+        }
+      },
+      "description": "Keys rolled up into common prefixes"
+    },
+    "EncodingType": {
+      "type": "string",
+      "description": "Encoding type used by Amazon S3 to encode object keys in the response"
+    },
+    "RequestCharged": {
+      "type": "string",
+      "description": "Indicates if the requester was successfully charged for the request"
+    }
+  }
+}
