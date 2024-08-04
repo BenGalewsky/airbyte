@@ -3,7 +3,7 @@
 #
 
 
-import datetime
+from datetime import datetime, timezone
 from typing import Any, Iterable, List, Mapping, MutableMapping, Optional, Tuple, Union
 
 import boto3
@@ -35,7 +35,7 @@ class Objects(Stream, IncrementalMixin):
     def __init__(self, s3_client: boto3.client, bucket: str):
         self.s3_client = s3_client
         self.bucket = bucket
-        self._last_modified = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+        self._last_modified = datetime.min.replace(tzinfo=timezone.utc)
 
         super().__init__()
 
@@ -59,12 +59,16 @@ class Objects(Stream, IncrementalMixin):
         if stream_state is None:
             stream_state = {}
 
+        if "LastModified" not in stream_state:
+            cursor_value = datetime.min.replace(tzinfo=timezone.utc)
+        else:
+            cursor_value = datetime.strptime(stream_state["LastModified"], '%Y-%m-%dT%H:%M:%S.%f%z')
         paginator = self.s3_client.get_paginator("list_objects_v2")
         for page in paginator.paginate(Bucket=self.bucket):
             for obj in page.get("Contents", []):
-                if obj["LastModified"] < stream_state.get("LastModified"):
+                if obj["LastModified"] <= cursor_value:
                     continue
-                self._last_modified = max(obj["LastModified"], self._last_modified)
+                self._last_modified = max(obj["LastModified"], cursor_value)
                 yield obj
 
 

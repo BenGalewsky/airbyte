@@ -1,59 +1,75 @@
 #
 # Copyright (c) 2024 Airbyte, Inc., all rights reserved.
 #
-
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from airbyte_cdk.models import SyncMode
+from dateutil.tz import tzutc
 from pytest import fixture
-from source_s3_objects.source import IncrementalS3ObjectsStream
 
+from source import Objects
 
 @fixture
-def patch_incremental_base_class(mocker):
-    # Mock abstract methods to enable instantiating abstract class
-    mocker.patch.object(IncrementalS3ObjectsStream, "path", "v0/example_endpoint")
-    mocker.patch.object(IncrementalS3ObjectsStream, "primary_key", "test_primary_key")
-    mocker.patch.object(IncrementalS3ObjectsStream, "__abstractmethods__", set())
+def mock_s3_client(mocker):
+    return mocker.MagicMock()
 
 
-def test_cursor_field(patch_incremental_base_class):
-    stream = IncrementalS3ObjectsStream()
-    # TODO: replace this with your expected cursor field
-    expected_cursor_field = []
+def test_cursor_field(mock_s3_client):
+    stream = Objects(mock_s3_client, "test_bucket")
+    expected_cursor_field = "LastModified"
     assert stream.cursor_field == expected_cursor_field
 
 
-def test_get_updated_state(patch_incremental_base_class):
-    stream = IncrementalS3ObjectsStream()
-    # TODO: replace this with your input parameters
-    inputs = {"current_stream_state": None, "latest_record": None}
-    # TODO: replace this with your expected updated stream state
-    expected_state = {}
-    assert stream.get_updated_state(**inputs) == expected_state
-
-
-def test_stream_slices(patch_incremental_base_class):
-    stream = IncrementalS3ObjectsStream()
-    # TODO: replace this with your input parameters
-    inputs = {"sync_mode": SyncMode.incremental, "cursor_field": [], "stream_state": {}}
-    # TODO: replace this with your expected stream slices list
-    expected_stream_slice = [None]
-    assert stream.stream_slices(**inputs) == expected_stream_slice
-
-
-def test_supports_incremental(patch_incremental_base_class, mocker):
-    mocker.patch.object(IncrementalS3ObjectsStream, "cursor_field", "dummy_field")
-    stream = IncrementalS3ObjectsStream()
+def test_supports_incremental(mock_s3_client, mocker):
+    mocker.patch.object(Objects, "cursor_field", "dummy_field")
+    stream = Objects(mock_s3_client, "test_bucket")
     assert stream.supports_incremental
 
 
-def test_source_defined_cursor(patch_incremental_base_class):
-    stream = IncrementalS3ObjectsStream()
+def test_source_defined_cursor(mock_s3_client):
+    stream = Objects(mock_s3_client, "test_bucket")
     assert stream.source_defined_cursor
 
+# Helper function to create UTC datetime
+def utc_datetime(*args):
+    return datetime(*args, tzinfo=ZoneInfo("UTC"))
 
-def test_stream_checkpoint_interval(patch_incremental_base_class):
-    stream = IncrementalS3ObjectsStream()
-    # TODO: replace this with your expected checkpoint interval
-    expected_checkpoint_interval = None
-    assert stream.state_checkpoint_interval == expected_checkpoint_interval
+
+@fixture
+def mock_s3_pages(mocker):
+    mock_paginator = mocker.Mock()
+    # Mock pages
+    mock_page1 = {
+        "Contents": [
+            {"Key": "file1.txt", "LastModified": utc_datetime(2023, 1, 1, 12, 0, 0)},
+            {"Key": "file2.txt", "LastModified": utc_datetime(2023, 1, 1, 13, 0, 0)},
+        ]
+    }
+    mock_page2 = {
+        "Contents": [
+            {"Key": "file3.txt", "LastModified": utc_datetime(2023, 1, 1, 14, 0, 0)},
+        ]
+    }
+    mock_paginator.paginate = mocker.Mock(return_value=[mock_page1, mock_page2])
+    return mocker.Mock(return_value=mock_paginator)
+
+
+def test_full_read(mock_s3_client, mock_s3_pages):
+    mock_s3_client.get_paginator = mock_s3_pages
+    stream = Objects(mock_s3_client, "test_bucket")
+    records = stream.read_records(SyncMode.full_refresh)
+    assert len(list(records)) == 3
+
+
+def test_incremental_read(mock_s3_client, mock_s3_pages):
+    mock_s3_client.get_paginator = mock_s3_pages
+    stream = Objects(mock_s3_client, "test_bucket")
+    # Set the stream state to a date that is before the first file's LastModified
+    records = list(stream.read_records(SyncMode.incremental, stream_state={"LastModified": "2023-01-01T10:00:00.000000+00:00"}))
+    assert len(records) == 3
+
+    # Now set the stream state to a date that equals first file's LastModified
+    records2 = list(stream.read_records(SyncMode.incremental, stream_state={"LastModified": "2023-01-01T12:00:00.000000+00:00"}))
+    assert len(records2) == 2
+
